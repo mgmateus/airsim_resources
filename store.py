@@ -1,5 +1,6 @@
 import os
 import argparse
+import time
 
 import numpy as np
 
@@ -48,9 +49,21 @@ if __name__ == "__main__":
     storage = Storage(ip, args.path_to_save)
     vertices = storage.get_mesh(args.mesh_name)
     
-    print(vertices.shape)
+    storage.confirmConnection()
+    storage.enableApiControl(True)
+    storage.armDisarm(True)
+    storage.takeoffAsync("Hydrone")
+    time.sleep(3)
     
-    print(storage.simTestLineOfSightToPoint(storage.geopoint_from_np([11360.0, 940, 3380.0]), "Hydrone"))
+    
+    p = storage.getMultirotorState().gps_location
+    t = storage.geopoint_from_np([4710.0, 1330.0, 3390.0])
+    
+    print(vertices.shape, p, t)
+    
+    # print(storage.simTestLineOfSightToPoint(storage.geopoint_from_np([4710.0, 1330.0, 3390.0]), "Hydrone"))
+    print(storage.simTestLineOfSightBetweenPoints(p, t))
+    
     
     # vv = vertices[:1000]
     # print(vv)
