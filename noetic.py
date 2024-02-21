@@ -7,7 +7,7 @@ from numpy.typing import NDArray
 from typing import Tuple
 
 from .airsim_base.client import MultirotorClient
-from .airsim_base.types import Vector3r, Quaternionr
+from .airsim_base.types import Quaternionr, GeoPoint
 from .airsim_base.utils import to_quaternion
 
 from std_msgs.msg import String
@@ -28,8 +28,17 @@ def image_transport(img_msg):
     except CvBridgeError as e:
         rospy.logerr("CvBridge Error: {0}".format(e))
 
-class QuarotorStereoROS(MultirotorClient):            
-    def __init__(self, ip : str, vehicle_name : str, camera_name : str, observation : str):
+class QuarotorStereoROS(MultirotorClient):      
+    @staticmethod
+    def geopoint_from_np(point):
+        lat, lg, alt = point
+        geopoint = GeoPoint()
+        geopoint.latitude = lat
+        geopoint.longitude = lg
+        geopoint.altitude = alt
+        return geopoint
+          
+    def __init__(self, ip : str, vehicle_name : str, camera_name : str, observation : str, vertices_path : str, vertices_name : str):
         MultirotorClient.__init__(self, ip)
         rospy.Subscriber("/airsim_node/"+vehicle_name+"/stereo/Scene", \
                          Image, self._callback_rgb)
@@ -53,6 +62,7 @@ class QuarotorStereoROS(MultirotorClient):
         self.__gimbal_orientation = to_quaternion(0, 0, 0)
         self.__rgb = np.array([])
         self.__depth = np.array([])
+        self.__vertices = np.load(vertices_path + "/" + vertices_name + ".npy")
 
     @property
     def vehicle_name(self):
@@ -157,7 +167,15 @@ class QuarotorStereoROS(MultirotorClient):
     def _observation(self) -> NDArray:
         return [self.rgb, self.depth]
 
-        
+    def test(self):
+        vv= self.__vertices[:100]
+        p = self.getMultirotorState().gps_location
+        # views = [self.simTestLineOfSightBetweenPoints(p, self.geopoint_from_np(v)) for v in vv]
+        # views = self.simTestLineOfSightBetweenPoints(p, self.geopoint_from_np([11360.0, 940.0, 2050.0]))
+        views = self.simTestLineOfSightBetweenPoints(p, self.geopoint_from_np([4710.0, 1330.0, 4450.0]))
+
+        rospy.logwarn(f"{p, views}")
+    
     def get_state(self, action : NDArray) -> Tuple[NDArray, bool]:
         linear_x, linear_y, linear_z, angular_x, angular_y, angular_z = action
         vx = np.clip(linear_x, -.25, .25)
